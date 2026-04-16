@@ -1,14 +1,12 @@
-# Knowledge Graph Project Template
+# Artifact Knowledge Workbench
 
-A minimal runnable template for a cultural artifact knowledge construction and visual analytics workbench.
+A single-page research-style workbench for cultural artifact knowledge construction and visual analytics.
 
 ## Stack
-
 - Frontend: Vue 3 + Vite
-- Backend: Python FastAPI
+- Backend: FastAPI
 
 ## Run frontend
-
 ```bash
 cd frontend
 npm install
@@ -16,7 +14,6 @@ npm run dev
 ```
 
 ## Run backend
-
 ```bash
 cd backend
 python3 -m venv .venv
@@ -24,6 +21,3 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python run.py
 ```
-
-Frontend: http://localhost:5173
-Backend: http://127.0.0.1:8000
