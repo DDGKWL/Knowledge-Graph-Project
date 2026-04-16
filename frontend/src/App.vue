@@ -1,98 +1,94 @@
 <template>
   <div class="app-shell">
-    <header class="top-bar shell-panel">
-      <div class="brand-block">
-        <div class="brand-mark"></div>
+    <header class="top-bar">
+      <div class="brand-panel">
+        <div class="seal-mark"></div>
         <div class="brand-copy">
-          <div class="brand-title">Artifact Knowledge Visual Analytics</div>
-          <div class="brand-subtitle">Empty layout shell for redesign and later interaction development</div>
+          <div class="brand-cn">数字文博知识构建与可视分析工作台</div>
+          <div class="brand-en">Digital Heritage Knowledge Workbench</div>
         </div>
       </div>
 
       <div class="top-actions">
-        <div class="pill-group">
-          <button v-for="item in modes" :key="item" class="pill-btn">{{ item }}</button>
-        </div>
-        <div class="pill-group compact">
-          <button class="pill-btn ghost">Save</button>
-          <button class="pill-btn ghost">Export</button>
-        </div>
+        <button v-for="item in modes" :key="item" class="ghost-btn">{{ item }}</button>
       </div>
     </header>
 
     <main class="workspace-grid">
-      <section class="left-rail shell-panel">
-        <div class="section-head">
-          <span class="section-tag">A</span>
-          <div>
-            <h2>Entry</h2>
-            <p>Structure entry and filter shell</p>
+      <aside class="left-rail heritage-panel">
+        <div class="panel-header">
+          <div class="panel-index">壹</div>
+          <div class="panel-title-group">
+            <h2>对象入口</h2>
+            <p>Entry</p>
           </div>
         </div>
 
         <div class="rail-stack">
-          <div class="empty-box soft h-56"></div>
-          <div class="empty-box soft h-140"></div>
-          <div class="empty-box soft h-140"></div>
-          <div class="empty-box soft h-140"></div>
+          <div class="empty-slot short"></div>
+          <div class="empty-slot medium"></div>
+          <div class="empty-slot tall"></div>
+          <div class="empty-slot tall"></div>
+        </div>
+      </aside>
+
+      <section class="center-stage heritage-panel">
+        <div class="panel-header panel-header-wide">
+          <div class="panel-index">贰</div>
+          <div class="panel-title-group panel-title-flex">
+            <div>
+              <h2>主分析画布</h2>
+              <p>Main Analysis Canvas</p>
+            </div>
+            <div class="sub-switches">
+              <button class="switch-btn active">结构</button>
+              <button class="switch-btn">比较</button>
+              <button class="switch-btn">发现</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="center-grid">
+          <div class="hero-canvas empty-slot"></div>
+          <div class="center-side">
+            <div class="empty-slot side-top"></div>
+            <div class="empty-slot side-bottom"></div>
+          </div>
         </div>
       </section>
 
-      <section class="center-stage shell-panel">
-        <div class="section-head center-head">
-          <span class="section-tag">B</span>
-          <div>
-            <h2>Knowledge Exploration</h2>
-            <p>Main canvas only, all inner content intentionally empty</p>
-          </div>
-          <div class="canvas-tabs">
-            <button class="tab-btn active">Structure</button>
-            <button class="tab-btn">Compare</button>
-            <button class="tab-btn">Discover</button>
+      <aside class="right-rail heritage-panel">
+        <div class="panel-header">
+          <div class="panel-index">叁</div>
+          <div class="panel-title-group">
+            <h2>证据与协同</h2>
+            <p>Evidence & Collaboration</p>
           </div>
         </div>
 
-        <div class="canvas-layout">
-          <div class="canvas-primary empty-box h-full"></div>
-          <div class="canvas-side-stack">
-            <div class="empty-box h-half"></div>
-            <div class="empty-box h-half"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="right-rail shell-panel">
-        <div class="section-head">
-          <span class="section-tag">C</span>
-          <div>
-            <h2>Evidence & Interpretation</h2>
-            <p>Assistant rail shell</p>
-          </div>
+        <div class="tab-strip">
+          <button class="switch-btn active">证据</button>
+          <button class="switch-btn">候选</button>
+          <button class="switch-btn">讨论</button>
         </div>
 
-        <div class="rail-tabs">
-          <button class="tab-btn active">Evidence</button>
-          <button class="tab-btn">Candidate</button>
-          <button class="tab-btn">AI</button>
+        <div class="rail-stack right-stack">
+          <div class="empty-slot medium"></div>
+          <div class="empty-slot tall"></div>
+          <div class="empty-slot tall"></div>
         </div>
-
-        <div class="rail-stack">
-          <div class="empty-box h-96"></div>
-          <div class="empty-box h-180"></div>
-          <div class="empty-box h-180"></div>
-        </div>
-      </section>
+      </aside>
     </main>
 
-    <footer class="bottom-strip shell-panel">
-      <div class="status-chip" v-for="n in 5" :key="n">
-        <div class="status-dot"></div>
-        <div class="status-line"></div>
+    <footer class="bottom-strip heritage-panel">
+      <div class="strip-chip" v-for="n in 5" :key="n">
+        <div class="chip-dot"></div>
+        <div class="chip-line"></div>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup>
-const modes = ['Single Artifact', 'Compare', 'Enrich']
+const modes = ['单文物', '比较分析', '知识扩展']
 </script>
