@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>文物知识图谱（支持多选功能）</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+<!--        :root {-->
+<!--            &#45;&#45;color-artifact: #FFA500; /* 文物节点默认色：橙色 */-->
+<!--            &#45;&#45;color-other-default: #ADD8E6; /* 属性节点默认色：浅蓝色 */-->
+<!--            &#45;&#45;color-relation-饰有: #FF6B6B;-->
+<!--            &#45;&#45;color-relation-材质为: #4ECDC4;-->
+<!--            &#45;&#45;color-relation-制作工艺为: #45B7D1;-->
+<!--            &#45;&#45;color-relation-尺寸为: #96CEB4;-->
+<!--            &#45;&#45;color-relation-出土于: #FFEAA7;-->
+<!--            &#45;&#45;color-relation-现存于: #DDA0DD;-->
+<!--            &#45;&#45;color-relation-朝代为: #a0d792f7;-->
+<!--            &#45;&#45;color-relation-用途为: #87CEEB;-->
+<!--            &#45;&#45;color-relation-重量为: #98D8C8;-->
+<!--            &#45;&#45;color-relation-纹饰类型为: #FF8C94;-->
+<!--            &#45;&#45;color-relation-类别为: #C4A484;-->
+<!--            &#45;&#45;color-relation-部分: #E0E0E0;-->
+<!--        }-->
+
+        :root {
+            --color-artifact: #FFA500;
+            --color-other-default: #ADD8E6;
+
+            /* 新增：非文物节点且belongs to多值时的颜色 */
+            --color-multi-belong: #FF6347; /* 示例：番茄红 */
+            /* 原有关系颜色（保留） */
+            --color-relation-饰有: #FF6B6B;
+            /* 新增基础版关系颜色 */
+            --color-relation-具有: #FF6B6B;
+            --color-relation-被誉为: #4ECDC4;
+            --color-relation-是: #45B7D1;
+            --color-relation-形成了: #96CEB4;
+            --color-relation-又称: #FFEAA7;
+            --color-relation-在: #DDA0DD;
+            --color-relation-需要: #a0d792f7;
+            --color-relation-易干裂: #87CEEB;
+            --color-relation-易霉变: #98D8C8;
+            --color-relation-易虫蛀: #FF8C94;
+            --color-relation-易损毁: #C4A484;
+            --color-relation-难逃: #E0E0E0;
+            --color-relation-存世: #FFAAA5;
+            --color-relation-收藏了: #FFD3B6;
+            --color-relation-加入: #FFFFB8;
+            --color-relation-开展了: #B5EAD7;
+            --color-relation-邀请: #C7CEEA;
+            --color-relation-发行: #F2D7EE;
+            --color-relation-推出: #E2F0CB;
+            --color-relation-召开: #FFCFD2;
+            --color-relation-举办: #C5E3ED;
+            --color-relation-收录了: #F7D794;
+            --color-relation-总结了: #B8E986;
+            --color-relation-精心拍摄了: #90CDF4;
+            --color-relation-展示了: #E9D8FD;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+            .graph-container {
+                flex: 1;
+            }
+            svg {
+                border: 1px solid #eee;
+                background: #f9f9f9;
+                width: 100%;
+                height: 800px;
+            }
+            /* 智能问答面板样式 */
+            .qa-panel {
+                width: 380px;
+                height: 800px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                display: flex; /* 默认隐藏 */
+                flex-direction: column;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .qa-panel.active {
+                display: flex;
+            }
+            .qa-header {
+                padding: 15px;
+                background: #f0f0f0;
+                border-bottom: 1px solid #ddd;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            .qa-messages {
+                flex: 1;
+                padding: 15px;
+                overflow-y: auto;
+                background: #fff;
+            }
+            .message {
+                margin-bottom: 15px;
+                max-width: 85%;
+            }
+            .message.user {
+                margin-left: auto;
+            }
+            .message-content {
+                padding: 10px 15px;
+                border-radius: 18px;
+                word-wrap: break-word;
+            }
+            .user .message-content {
+                background: #007bff;
+                color: white;
+            }
+            .assistant .message-content {
+                background: #f1f1f1;
+                color: #333;
+            }
+            .qa-input {
+                padding: 15px;
+                border-top: 1px solid #ddd;
+                display: flex;
+                gap: 10px;
+            }
+            #question-input {
+                flex: 1;
+                padding: 10px 15px;
+                border: 1px solid #ddd;
+                border-radius: 20px;
+                outline: none;
+            }
+            #send-btn {
+                padding: 10px 20px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                cursor: pointer;
+            }
+            #send-btn:hover {
+                background: #0056b3;
+            }
+            /* 图谱样式 */
+            .node circle {
+                stroke: #333;
+                stroke-width: 1.5px;
+                cursor: pointer;
+            }
+            .node text {
+                font-size: 12px;
+                font-weight: normal;
+                pointer-events: none;
+                fill: #333;
+            }
+            .link {
+                stroke: #999;
+                stroke-opacity: 0.6;
+            }
+            .link-label {
+                font-size: 10px;
+                fill: #666;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+            }
+            /* 高亮样式 - 支持多个选中节点 */
+            .node.highlight {
+              stroke: #d32f2f;
+              stroke-width: 0px;
+              font-weight: normal; /* 确保父元素不继承加粗 */
+            }
+            .node.highlight text {
+              fill: #2196F3;
+              font-weight: normal !important; /* 强制设置不加粗（解决优先级问题） */
+              font-size: 15px;
+              text-shadow: 0 0 2px white;
+            }
+            .node.faded {
+                opacity: 0.2;
+                transition: opacity 0.3s ease;
+            }
+            .link.faded {
+                opacity: 0.1;
+                transition: opacity 0.3s ease;
+            }
+            .link-label.faded {
+                opacity: 0.1;
+                transition: opacity 0.3s ease;
+            }
+        /* 提示信息样式 */
+<!--        .tooltip {-->
+<!--            position: absolute;-->
+<!--            background: rgba(0,0,0,0.7);-->
+<!--            color: white;-->
+<!--            padding: 8px 12px;-->
+<!--            border-radius: 4px;-->
+<!--            font-size: 14px;-->
+<!--            pointer-events: none;-->
+<!--            opacity: 0;-->
+<!--            transition: opacity 0.3s;-->
+<!--            z-index: 1000;-->
+<!--        }-->
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="graph-container">
+            <svg></svg>
+            <!-- 提示信息元素 -->
+<!--            <div class="tooltip" id="tooltip"></div>-->
+        </div>
+        <!-- 智能问答面板 -->
+        <div class="qa-panel" id="qa-panel">
+            <div class="qa-header">智能问答</div>
+            <div class="qa-messages" id="messages-container">
+                <!-- 消息会动态添加到这里 -->
+            </div>
+            <div class="qa-input">
+                <input type="text" id="question-input" placeholder="请输入问题...">
+                <button id="send-btn">发送</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const svg = d3.select('svg');
+        const width = +svg.style('width').replace('px', '');
+        const height = +svg.style('height').replace('px', '');
+        const g = svg.append('g');
+        const qaPanel = document.getElementById('qa-panel');
+        const messagesContainer = document.getElementById('messages-container');
+        const questionInput = document.getElementById('question-input');
+        const sendBtn = document.getElementById('send-btn');
+        const tooltip = document.getElementById('tooltip');
+        let fullData = { nodes: [], links: [] };
+        let simulation;
+        let selectedNodes = []; // 存储选中的文物节点ID，最多2个
+        let isNonArtifactSubgraph = false; // 新增：标记是否处于非文物节点的子图模式
+        let currentSubgraphData = null;
+
+        // 核心配置：关系-颜色映射（与后端保持一致）
+<!--        const RELATION_COLOR_MAP = {-->
+<!--            "饰有": "var(&#45;&#45;color-relation-饰有)",-->
+<!--            "材质为": "var(&#45;&#45;color-relation-材质为)",-->
+<!--            "制作工艺为": "var(&#45;&#45;color-relation-制作工艺为)",-->
+<!--            "尺寸为": "var(&#45;&#45;color-relation-尺寸为)",-->
+<!--            "出土于": "var(&#45;&#45;color-relation-出土于)",-->
+<!--            "现存于": "var(&#45;&#45;color-relation-现存于)",-->
+<!--            "朝代为": "var(&#45;&#45;color-relation-朝代为)",-->
+<!--            "用途为": "var(&#45;&#45;color-relation-用途为)",-->
+<!--            "重量为": "var(&#45;&#45;color-relation-重量为)",-->
+<!--            "纹饰类型为": "var(&#45;&#45;color-relation-纹饰类型为)",-->
+<!--            "类别为": "var(&#45;&#45;color-relation-类别为)",-->
+<!--            "部分": "var(&#45;&#45;color-relation-部分)"-->
+<!--        };-->
+        const RELATION_COLOR_MAP = {
+            "饰有": "var(--color-relation-饰有)",
+            // 新增基础版关系映射
+            "具有": "var(--color-relation-具有)",
+            "被誉为": "var(--color-relation-被誉为)",
+            "是": "var(--color-relation-是)",
+            "形成了": "var(--color-relation-形成了)",
+            "又称": "var(--color-relation-又称)",
+            "在": "var(--color-relation-在)",
+            "需要": "var(--color-relation-需要)",
+            "易干裂": "var(--color-relation-易干裂)",
+            "易霉变": "var(--color-relation-易霉变)",
+            "易虫蛀": "var(--color-relation-易虫蛀)",
+            "易损毁": "var(--color-relation-易损毁)",
+            "难逃": "var(--color-relation-难逃)",
+            "存世": "var(--color-relation-存世)",
+            "收藏了": "var(--color-relation-收藏了)",
+            "加入": "var(--color-relation-加入)",
+            "开展了": "var(--color-relation-开展了)",
+            "邀请": "var(--color-relation-邀请)",
+            "发行": "var(--color-relation-发行)",
+            "推出": "var(--color-relation-推出)",
+            "召开": "var(--color-relation-召开)",
+            "举办": "var(--color-relation-举办)",
+            "收录了": "var(--color-relation-收录了)",
+            "总结了": "var(--color-relation-总结了)",
+            "精心拍摄了": "var(--color-relation-精心拍摄了)",
+            "展示了": "var(--color-relation-展示了)"
+        };
+
+        const DEFAULT_COLORS = {
+            artifact: "var(--color-artifact)",     // 文物节点默认色：橙色
+            other: "var(--color-other-default)"    // 属性节点默认色（无文物关联时）：浅蓝色
+        };
+
+        // 核心函数：根据节点类型和关联关系计算颜色
+        // function getNodeColor(node) {
+        //     // 1. 文物节点：固定默认色
+        //     if (node.is_artifact === 1) {
+        //         return DEFAULT_COLORS.artifact;
+        //     }
+        //
+        //     // 2. 属性节点：优先使用"文物→属性"关联的关系色，无则用默认色
+        //     if (node.related_relations && node.related_relations.length > 0) {
+        //         // 遍历关联关系，找到"来源是文物节点"的第一条记录
+        //         const artifactRelation = node.related_relations.find(rel => {
+        //             // 从全量数据中找到来源节点，判断是否为文物
+        //             const sourceNode = fullData.nodes.find(n => n.id === rel.source_node);
+        //             return sourceNode && sourceNode.is_artifact === 1;
+        //         });
+        //
+        //         // 若存在"文物→属性"关系，用关系色；否则用属性节点默认色
+        //         return artifactRelation
+        //             ? RELATION_COLOR_MAP[artifactRelation.relation] || DEFAULT_COLORS.other
+        //             : DEFAULT_COLORS.other;
+        //     }
+        //
+        //     // 3. 无关联关系的属性节点：用默认色
+        //     return DEFAULT_COLORS.other;
+        // }
+        function getNodeColor(node) {
+            // 1. 文物节点：固定默认色
+            if (node.is_artifact === 1) {
+                return DEFAULT_COLORS.artifact;
+            }
+
+            // 2. 非文物节点逻辑
+            const isMultiSelect = selectedNodes.length >= 2;
+            if (!isMultiSelect) {
+                // 非多选状态：沿用原有关系色逻辑
+                return getDefaultRelationColor(node);
+            }
+
+            // 3. 多选状态下的特殊判断
+            // 3.1 获取当前非文物节点的belongs_to集合
+            const fullNode = fullData.nodes.find(n => n.id === node.id);
+            const nodeBelongs = fullNode ? String(fullNode.belongs_to || '').trim() : '';
+            const nodeBelongsSet = new Set(nodeBelongs.split(',').map(x => x.trim()).filter(Boolean));
+
+            // 3.2 收集所有选中文物节点的belongs_to并集
+            const selectedBelongsUnion = new Set();
+            selectedNodes.forEach(artId => {
+                const artNode = fullData.nodes.find(n => n.id === artId);
+                if (artNode) {
+                    const artBelongs = String(artNode.belongs_to || '').trim();
+                    artBelongs.split(',').map(x => x.trim()).filter(Boolean)
+                            .forEach(val => selectedBelongsUnion.add(val));
+                }
+            });
+
+            // 3.3 判断节点belongs_to是否包含选中文物的belongs_to并集
+            const isSubset = Array.from(selectedBelongsUnion).every(val =>
+                    nodeBelongsSet.has(val)
+            );
+
+            // 3.4 满足条件则显示特殊颜色，否则使用默认关系色
+            return isSubset ? "var(--color-multi-belong)" : getDefaultRelationColor(node);
+        }
+
+        // 提取原有关系色判断逻辑作为辅助函数
+        function getDefaultRelationColor(node) {
+            if (node.related_relations && node.related_relations.length > 0) {
+                const artifactRelation = node.related_relations.find(rel => {
+                    const sourceNode = fullData.nodes.find(n => n.id === rel.source_node);
+                    return sourceNode && sourceNode.is_artifact === 1;
+                });
+                return artifactRelation
+                        ? RELATION_COLOR_MAP[artifactRelation.relation] || DEFAULT_COLORS.other
+                        : DEFAULT_COLORS.other;
+            }
+            return DEFAULT_COLORS.other;
+        }
+
+        // 缩放功能
+        const zoom = d3.zoom()
+            .scaleExtent([0.3, 3])
+            .on('zoom', (event) => g.attr('transform', event.transform));
+        svg.call(zoom);
+
+        // 初始化加载全图数据
+        d3.json('/graph-data').then(data => {
+            fullData = data;
+            renderGraph(fullData);
+            // 初始显示默认问答面板
+            showDefaultQAPanel();
+            // 空白区域点击重置
+            svg.on('click', function(event) {
+                if (event.target === this) { // 仅点击空白区域触发
+                    if (isNonArtifactSubgraph) { // 若处于非文物子图模式
+                        resetView(); // 恢复全图（原有函数，负责重新渲染全图）
+                        isNonArtifactSubgraph = false; // 关闭子图模式
+                    }
+                    // 保留原有文物节点选中重置逻辑
+                    if (selectedNodes.length > 0) {
+                        selectedNodes = [];
+                        updateView();
+                    }
+                    showDefaultQAPanel();
+                }
+            });
+        });
+
+        // 渲染图谱
+        function renderGraph(data) {
+            g.selectAll('*').remove();
+
+            // 1. 绘制边
+            const link = g.append('g')
+                .attr('class', 'links')
+                .selectAll('line')
+                .data(data.links)
+                .join('line')
+                .attr('class', 'link')
+                .attr('stroke-width', 2);
+
+            // 2. 绘制边标签
+            const linkLabel = g.append('g')
+                .attr('class', 'link-labels')
+                .selectAll('text')
+                .data(data.links)
+                .join('text')
+                .attr('class', 'link-label')
+                .text(d => d.relation);
+
+            // 3. 绘制节点
+            const node = g.append('g')
+                .attr('class', 'nodes')
+                .selectAll('g')
+                .data(data.nodes)
+                .join('g')
+                .attr('class', 'node')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', nodeClicked)
+<!--                .on('mouseover', (event, d) => showTooltip(event, d))-->
+<!--                .on('mouseout', hideTooltip);-->
+
+            // 节点圆圈（使用新的着色逻辑）
+            node.append('circle')
+                .attr('r', d => d.is_artifact === 1 ? 15 : 10) // 文物节点半径更大
+                .attr('fill', d => getNodeColor(d)); // 按计算的颜色填充
+
+            // 节点文本
+            node.append('text')
+                .text(d => d.name || d.id)
+                .attr('x', 15)
+                .attr('y', 5);
+
+            // 力模拟
+            simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.links).id(d => d.id).distance(120))
+                .force('charge', d3.forceManyBody().strength(-400))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collide', d3.forceCollide().radius(70));
+
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                linkLabel
+                    .attr('x', d => (d.source.x + d.target.x) / 2)
+                    .attr('y', d => (d.source.y + d.target.y) / 2);
+
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+        }
+
+        function handleNonArtifactClick(nodeId) {
+            d3.json(`/non-artifact-related/${encodeURIComponent(nodeId)}`).then(data => {
+                highlightSubgraph(data);
+                selectedNodes = [];
+                hideQAPanel();
+                isNonArtifactSubgraph = true; // 新增：开启子图模式标记
+            });
+        }
+
+        // 节点点击事件
+        function nodeClicked(event, d) {
+            event.stopPropagation();
+            // 只处理文物节点
+            // if (d.is_artifact !== 1) return;
+
+            const isCtrlPressed = event.ctrlKey || event.metaKey; // 支持Ctrl和Cmd键
+            const nodeId = d.id;
+
+            // 新增：处理非文物节点点击
+            if (d.is_artifact !== 1) {
+                handleNonArtifactClick(nodeId);
+                return;
+            }
+
+            const isAlreadySelected = selectedNodes.includes(nodeId);
+
+            // 处理取消选中
+            if (isAlreadySelected) {
+                selectedNodes = selectedNodes.filter(id => id !== nodeId);
+                updateView();
+                if (selectedNodes.length === 0) {
+                    showDefaultQAPanel();
+                } else if (selectedNodes.length === 1) {
+                    // 切换到单个节点的问答
+                    showQAPanel(selectedNodes[0]);
+                }else {
+                    showMultiQAPanel();
+                }
+                return;
+            }
+
+            // 处理新选中
+            if (!isCtrlPressed) {
+                // 未按Ctrl键，清空之前的选中
+                selectedNodes = [];
+            }
+
+            selectedNodes.push(nodeId); // 直接添加新节点
+            updateView();
+
+            // 显示对应问答面板
+            if (selectedNodes.length === 1) {
+                showQAPanel(nodeId);
+            } else {
+                showMultiQAPanel();
+            }
+
+            // 限制最多选中2个节点
+            // if (selectedNodes.length < 2) {
+            //     selectedNodes.push(nodeId);
+            //     updateView();
+            //     // 显示对应面板
+            //     if (selectedNodes.length === 1) {
+            //         showQAPanel(nodeId);
+            //     } else {
+            //         // 选中两个节点时隐藏问答面板
+            //         hideQAPanel();
+            //     }
+            // }
+            // 新代码：允许选中多个节点（无上限）
+            // if (!isAlreadySelected) {
+            //     if (!isCtrlPressed) {
+            //         selectedNodes = []; // 未按Ctrl时清空之前选中
+            //     }
+            //     selectedNodes.push(nodeId); // 直接添加新节点
+            //     updateView();
+            //     // 选中节点后显示问答面板（无论数量）
+            //     showQAPanel();
+            // }
+        }
+
+        // 更新视图
+        function updateView() {
+            // 清除所有高亮和淡化
+            g.selectAll('.node')
+                .classed('faded', false)
+                .classed('highlight', false);
+            g.selectAll('.link, .link-label')
+                .classed('faded', false);
+<!--            hideTooltip();-->
+
+            if (selectedNodes.length === 0) {
+                // 无选中节点，显示全图
+                currentSubgraphData = null;
+                // 取消多选时，重新渲染全图颜色（恢复默认）
+                g.selectAll('.node circle')
+                        .attr('fill', d => getNodeColor(d));
+                return;
+            }
+
+            // 高亮选中的节点
+            g.selectAll('.node')
+                .classed('highlight', d => selectedNodes.includes(d.id));
+
+            if (selectedNodes.length === 1) {
+                // 单个节点，显示两跳内非文物节点
+                const nodeId = selectedNodes[0];
+                d3.json(`/two-hop/${encodeURIComponent(nodeId)}`).then(data => {
+                    currentSubgraphData = data;
+                    highlightSubgraph(data);
+                    // 重新渲染颜色
+                    g.selectAll('.node circle')
+                            .attr('fill', d => getNodeColor(d));
+                });
+            } else {
+                // 多选：调用新的后端接口（传递所有选中节点ID）
+                const nodesParam = selectedNodes.join(','); // 用逗号拼接节点ID
+                d3.json(`/multi-nodes/${encodeURIComponent(nodesParam)}`).then(data => {
+                    currentSubgraphData = data;
+                    highlightSubgraph(data);
+                    // 重新渲染颜色
+                    g.selectAll('.node circle')
+                    .attr('fill', d => getNodeColor(d));
+                });
+            }
+        }
+
+        // 高亮子图
+        function highlightSubgraph(subgraphData) {
+            // 1. 构建子图的核心标识集合（快速判断，避免重复计算）
+            // 1.1 子图节点ID集合（判断节点是否在子图内）
+            const subgraphNodeIds = new Set(subgraphData.nodes.map(n => n.id));
+            // 1.2 子图边的“唯一标识集合”（判断边是否在子图内，确保边与标签同步）
+            const subgraphEdgeKeys = new Set(
+                subgraphData.links.map(link => {
+                    // 统一提取边的source/target ID（兼容“节点对象”和“字符串ID”两种格式）
+                    const getNodeId = (node) => node.id || node; // 核心：不管是对象还是字符串，都能拿到ID
+                    const sourceId = getNodeId(link.source);
+                    const targetId = getNodeId(link.target);
+                    // 生成唯一标识：按“小ID-大ID-关系”排序（避免“source/target顺序颠倒”导致误判）
+                    const sortedIds = [sourceId, targetId].sort();
+                    return `${sortedIds[0]}-${sortedIds[1]}-${link.relation}`;
+                })
+            );
+
+            // 2. 处理节点：兼容原有 .node.faded 样式（非子图加faded，子图移除）
+            g.selectAll('.node')
+                .classed('faded', d => !subgraphNodeIds.has(d.id)) // 非子图节点→加.faded（淡化）
+                .classed('highlight', d => selectedNodes.includes(d.id)); // 选中节点→加highlight（高亮）
+            // （原有CSS的 opacity:0.2 和 transition 会自动生效，无需额外处理）
+
+            // 3. 处理边：兼容原有 .link.faded 样式（子图内边正常，非子图边淡化）
+            g.selectAll('.link')
+                .each(function() {
+                    const link = d3.select(this);
+                    const linkData = link.data()[0]; // 获取当前边的数据
+
+                    // 生成当前边的唯一标识（和子图边的标识规则完全一致）
+                    const getNodeId = (node) => node.id || node;
+                    const sourceId = getNodeId(linkData.source);
+                    const targetId = getNodeId(linkData.target);
+                    const sortedIds = [sourceId, targetId].sort();
+                    const currentEdgeKey = `${sortedIds[0]}-${sortedIds[1]}-${linkData.relation}`;
+
+                    // 判断：子图内的边→移除.faded（正常显示），非子图边→加.faded（淡化）
+                    const isInSubgraph = subgraphEdgeKeys.has(currentEdgeKey);
+                    link.classed('faded', !isInSubgraph);
+                });
+
+            // 4. 处理边标签：兼容原有 .link-label.faded 样式（与边同步淡化）
+            g.selectAll('.link-label')
+                .each(function() {
+                    const label = d3.select(this);
+                    const labelData = label.data()[0]; // 获取当前标签对应的边数据（边和标签数据一一对应）
+
+                    // 生成当前标签对应边的唯一标识（和边的逻辑完全一致）
+                    const getNodeId = (node) => node.id || node;
+                    const sourceId = getNodeId(labelData.source);
+                    const targetId = getNodeId(labelData.target);
+                    const sortedIds = [sourceId, targetId].sort();
+                    const currentEdgeKey = `${sortedIds[0]}-${sortedIds[1]}-${labelData.relation}`;
+
+                    // 判断：与对应边同步→子图内标签移除.faded，非子图标签加.faded
+                    const isInSubgraph = subgraphEdgeKeys.has(currentEdgeKey);
+                    label.classed('faded', !isInSubgraph);
+                });
+            // 强制刷新节点颜色（关键）
+            g.selectAll('.node circle')
+                    .attr('fill', d => getNodeColor(d));
+        }
+        // 重置视图
+        function resetView() {
+            selectedNodes = [];
+            currentSubgraphData = null;
+            renderGraph(fullData);
+        }
+
+        // 显示问答面板
+        function showQAPanel(artifactId) {
+            qaPanel.classList.add('active');
+            // 清空消息容器并添加欢迎消息
+            const node = fullData.nodes.find(n => n.id === artifactId);
+            const nodeName = node?.name || artifactId;
+            messagesContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-content">
+                        您好！我可以为您解答关于文物「${nodeName}」的问题，请提问。
+                    </div>
+                </div>
+            `;
+            // 自动聚焦到输入框
+            questionInput.focus();
+        }
+
+        // 隐藏问答面板
+        function hideQAPanel() {
+            qaPanel.classList.remove('active');
+        }
+
+        // 新增默认问答面板显示函数
+        function showDefaultQAPanel() {
+            qaPanel.classList.add('active');
+            messagesContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-content">
+                        您好！当前未选中任何文物节点，我可以为您解答关于所有文物的问题，请提问。
+                    </div>
+                </div>
+            `;
+            questionInput.focus();
+        }
+
+        // 修改多节点问答面板显示函数
+        function showMultiQAPanel() {
+            qaPanel.classList.add('active');
+            // 从全图数据中找到选中节点的原始名称
+            const nodeNames = selectedNodes.map(id => {
+                const node = fullData.nodes.find(n => n.id === id);
+                return node?.name || id;  // 用name字段，兼容未找到的情况
+            });
+            const nodeList = nodeNames.join('、');
+            messagesContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-content">
+                        您好！我可以为您解答关于文物「${nodeList}」的问题，请提问。
+                    </div>
+                </div>
+            `;
+            questionInput.focus();
+        }
+
+
+        // 发送问题
+        function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // const artifactId = selectedNodes.join(',');
+
+            // 添加用户消息到面板
+            addMessageToPanel('user', question);
+
+            // 清空输入框
+            questionInput.value = '';
+
+            // 根据选中节点数量选择不同的API
+            let apiUrl;
+            if (selectedNodes.length === 0) {
+                // 无选中节点，使用全部节点API
+                apiUrl = '/all-nodes-qa';
+            } else if (selectedNodes.length === 1) {
+                // 单个节点
+                apiUrl = `/qa/${encodeURIComponent(selectedNodes[0])}`;
+            } else {
+                // 多个节点
+                apiUrl = `/multi-qa/${encodeURIComponent(selectedNodes.join(','))}`;
+            }
+
+
+            // 调用后端API获取答案
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    addMessageToPanel('assistant', `错误：${data.error}`);
+                } else {
+                    addMessageToPanel('assistant', data.answer);
+                }
+            })
+            .catch(error => {
+                addMessageToPanel('assistant', `请求失败：${error.message}`);
+            });
+        }
+
+        // 添加消息到面板
+        function addMessageToPanel(sender, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            messagesContainer.appendChild(messageDiv);
+            // 滚动到底部
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // 拖拽事件处理函数
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // 显示提示信息
+        function showTooltip(event, d) {
+            tooltip.style.opacity = 1;
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 20) + 'px';
+
+            // 构建提示信息
+            let content = `<strong>${d.name || d.id}</strong>`;
+            if (d.is_artifact === 1) {
+                content += '<br>类型：文物节点';
+                content += `<br>归属：${d.belongs_to || '未知'}`;  // 补充显示归属信息
+            } else {
+                content += '<br>类型：属性节点';
+                if (d.related_relations && d.related_relations.length > 0) {
+                    content += '<br>关联关系：';
+                    d.related_relations.slice(0, 3).forEach(rel => {
+                        content += `<br>- ${rel.source_node} → ${rel.relation}`;
+                    });
+                    if (d.related_relations.length > 3) {
+                        content += `<br>... 还有 ${d.related_relations.length - 3} 个关系`;
+                    }
+                }
+            }
+            tooltip.innerHTML = content;
+        }
+
+        // 隐藏提示信息
+        function hideTooltip() {
+            tooltip.style.opacity = 0;
+        }
+
+        <!--?function getNodeColor(node) {-->
+        <!--?    // 调试：打印节点ID和belongs to值-->
+
+
+        <!--?    // 1. 文物节点：固定默认色（不变）-->
+        <!--?    if (node.is_artifact === 1) {-->
+        <!--?        return DEFAULT_COLORS.artifact;-->
+        <!--?    }-->
+
+        <!--?    // 2. 非文物节点：判断是否为多选状态且belongs to多值-->
+        <!--?    // 检查是否处于多选状态（选中节点数≥2）-->
+        <!--?    const isMultiSelect = selectedNodes.length >= 2;-->
+        <!--?    // 获取节点的belongs to值（从node_properties中取，需确保数据已加载）-->
+        <!--?    const nodeProps = fullData.nodes.find(n => n.id === node.id)?.props || {};-->
+        <!--?    const belongsTo = String(nodeProps['belongs to'] || '').trim();-->
+        <!--?    // 判断belongs to是否有多个值（以逗号分隔且至少2个）-->
+        <!--?    const hasMultiBelong = belongsTo.split(',').filter(x => x.trim()).length >= 2;-->
+
+        <!--?    // 若满足“多选状态+非文物+多值belongs to”，应用特殊颜色-->
+        <!--?    if (isMultiSelect && hasMultiBelong) {-->
+        <!--?        return "var(--color-multi-belong)";-->
+        <!--?    }-->
+
+        <!--?    // 3. 其他情况：使用原有逻辑（关系色或默认色）-->
+        <!--?    if (node.related_relations && node.related_relations.length > 0) {-->
+        <!--?        const artifactRelation = node.related_relations.find(rel => {-->
+        <!--?            const sourceNode = fullData.nodes.find(n => n.id === rel.source_node);-->
+        <!--?            return sourceNode && sourceNode.is_artifact === 1;-->
+        <!--?        });-->
+        <!--?        return artifactRelation-->
+        <!--?            ? RELATION_COLOR_MAP[artifactRelation.relation] || DEFAULT_COLORS.other-->
+        <!--?            : DEFAULT_COLORS.other;-->
+        <!--?    }-->
+
+        <!--?    console.log(`节点${node.id}的belongs to:`, nodeProps['belongs to']);-->
+
+
+        <!--?    return DEFAULT_COLORS.other;-->
+        <!--?}-->
+
+        // 绑定发送按钮事件
+        sendBtn.addEventListener('click', sendQuestion);
+
+        // 绑定回车键发送
+        questionInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendQuestion();
+            }
+        });
+    </script>
+</body>
+</html>
